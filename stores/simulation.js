@@ -8,41 +8,49 @@ export const useSimulationStore = defineStore('simulation', () => {
         workers: [],
         soldiers: [],
         larvae: [],
-        food: 1000,
-        water: 1000,
-        aphidColonies: 3,
-        fungusFarms: 2
+        food: 2000, // Увеличено количество еды
+        foodStorage: 1000,
+        nursery: []
     })
 
     // Параметры окружения
     const environment = ref({
-        dayCycle: 'day',
-        temperature: 25,
         plants: [],
-        dayTime: 0
+        foodSources: []
     })
 
     // Параметры симуляции
     const params = ref({
         speed: 1,
         isRunning: false,
-        dayDuration: 60000 // 1 минута реального времени = 1 день
+        foodSpawnInterval: 10, // Чаще появляется еда
+        lastFoodSpawnTime: 0,
+        maxFoodSources: 30 // Больше еды на карте
     })
 
-    // Генерация растений
-    function generatePlants(count) {
-        return Array.from({ length: count }, (_, i) => ({
-            id: `plant-${i}`,
-            x: Math.random() * 750 + 25,
-            y: Math.random() * 550 + 25,
-            size: Math.random() * 30 + 20,
-            health: Math.random() * 50 + 50
-        }))
+    // Функция создания новой еды
+    function spawnNewFood() {
+        const newFoodCount = Math.floor(Math.random() * 5) + 3 // 3-7 новых источников
+
+        for (let i = 0; i < newFoodCount; i++) {
+            if (environment.value.foodSources.length < params.value.maxFoodSources) {
+                environment.value.foodSources.push({
+                    id: `food-${Date.now()}-${i}`,
+                    x: Math.random() * 800, // По всему полю
+                    y: Math.random() * 600,
+                    amount: Math.random() * 200 + 100 // Больше еды
+                })
+            }
+        }
     }
 
     // Инициализация колонии
     function initializeColony() {
-        environment.value.plants = generatePlants(20)
+        environment.value.foodSources = []
+        // Создаем больше начальной еды
+        for (let i = 0; i < 10; i++) {
+            spawnNewFood()
+        }
 
         colony.value = {
             queens: [{
@@ -51,23 +59,25 @@ export const useSimulationStore = defineStore('simulation', () => {
                 age: 0,
                 energy: 200,
                 x: 400,
-                y: 300
+                y: 300,
+                task: 'laying_eggs'
             }],
             workers: Array.from({ length: 20 }, (_, i) => ({
                 id: `worker-${i}`,
                 type: 'worker',
                 age: Math.random() * 10,
                 energy: 100,
-                task: null,
+                task: i < 10 ? 'foraging' : 'nursing',
                 x: 400 + (Math.random() * 100 - 50),
-                y: 300 + (Math.random() * 100 - 50)
+                y: 300 + (Math.random() * 100 - 50),
+                carryingFood: false
             })),
             soldiers: Array.from({ length: 5 }, (_, i) => ({
                 id: `soldier-${i}`,
                 type: 'soldier',
                 age: Math.random() * 20,
                 energy: 150,
-                task: null,
+                task: 'patrolling',
                 x: 400 + (Math.random() * 100 - 50),
                 y: 300 + (Math.random() * 100 - 50)
             })),
@@ -75,14 +85,13 @@ export const useSimulationStore = defineStore('simulation', () => {
                 id: `larva-${i}`,
                 age: Math.random() * 5,
                 foodReceived: 0,
-                developmentStage: ['egg', 'larva', 'pupa'][Math.floor(Math.random() * 3)],
-                x: 400 + (Math.random() * 50 - 25),
-                y: 300 + (Math.random() * 50 - 25)
+                health: 50,
+                x: 350 + (Math.random() * 100),
+                y: 250 + (Math.random() * 100)
             })),
-            food: 1000,
-            water: 1000,
-            aphidColonies: 3,
-            fungusFarms: 2
+            food: 2000,
+            foodStorage: 1000,
+            nursery: []
         }
     }
 
@@ -90,137 +99,192 @@ export const useSimulationStore = defineStore('simulation', () => {
     function updateSimulation(deltaTime) {
         if (!params.value.isRunning) return
 
-        // Обновление времени дня
-        environment.value.dayTime += deltaTime
-        if (environment.value.dayTime > params.value.dayDuration) {
-            environment.value.dayCycle = environment.value.dayCycle === 'day' ? 'night' : 'day'
-            environment.value.dayTime = 0
-            newDayActions()
+        // Спавним еду
+        params.value.lastFoodSpawnTime += deltaTime
+        if (params.value.lastFoodSpawnTime >= params.value.foodSpawnInterval) {
+            spawnNewFood()
+            params.value.lastFoodSpawnTime = 0
         }
 
-        // Обновление муравьев
-        colony.value.workers.forEach(worker => updateAnt(worker, deltaTime))
-        colony.value.soldiers.forEach(soldier => updateAnt(soldier, deltaTime))
+        // Удаляем мертвых муравьев
+        colony.value.workers = colony.value.workers.filter(worker => {
+            const isAlive = updateAnt(worker, deltaTime)
+            return isAlive && worker.energy > 0
+        })
+
+        colony.value.soldiers = colony.value.soldiers.filter(soldier => {
+            const isAlive = updateAnt(soldier, deltaTime)
+            return isAlive && soldier.energy > 0
+        })
+
+        // Обновляем царицу
         colony.value.queens.forEach(queen => updateAnt(queen, deltaTime))
 
         // Обновление личинок
         updateLarvae(deltaTime)
 
-        // Обновление ресурсов
-        updateResources(deltaTime)
-    }
-
-    // Действия при наступлении нового дня
-    function newDayActions() {
         // Царица откладывает яйца
-        if (colony.value.food > 100) {
-            const newEggs = Math.floor(Math.random() * 3)
-            for (let i = 0; i < newEggs; i++) {
-                colony.value.larvae.push({
-                    id: `larva-${Date.now()}-${i}`,
-                    age: 0,
-                    foodReceived: 0,
-                    developmentStage: 'egg',
-                    x: 400 + (Math.random() * 30 - 15),
-                    y: 300 + (Math.random() * 30 - 15)
-                })
-            }
-            colony.value.food -= 50 * newEggs
-        }
+        layEggs(deltaTime)
     }
 
-    // Вспомогательные функции
+    // Обновление муравья (возвращает false если умер)
     function updateAnt(ant, deltaTime) {
-        // Обновление возраста и энергии
         ant.age += deltaTime / 1000;
-
-        // Муравьи теряют энергию со временем
         ant.energy -= 0.005 * deltaTime;
 
-        // Если муравей без энергии - пропускаем
         if (ant.energy <= 0) {
-            ant.energy = 0;
-            return;
+            return false; // Муравей умер
         }
 
-        // Автоматическое восстановление энергии при достаточных ресурсах
-        if (colony.value.food > 100 && colony.value.water > 50) {
-            ant.energy = Math.min(100, ant.energy + 0.002 * deltaTime);
-            colony.value.food -= 0.001 * deltaTime;
-            colony.value.water -= 0.0005 * deltaTime;
+        // Восстановление энергии
+        if (colony.value.foodStorage > 10) {
+            ant.energy = Math.min(ant.type === 'soldier' ? 150 : 100, ant.energy + 0.002 * deltaTime);
+            colony.value.foodStorage -= 0.001 * deltaTime;
         }
 
-        // Логика движения
-        if (!ant.task || Math.random() < 0.01) {
-            // Случайное блуждание
-            ant.x += (Math.random() - 0.5) * deltaTime * 0.2;
-            ant.y += (Math.random() - 0.5) * deltaTime * 0.2;
-
-            // Удерживаем в границах
-            ant.x = Math.max(20, Math.min(780, ant.x));
-            ant.y = Math.max(20, Math.min(580, ant.y));
+        // Логика задач
+        if (ant.type === 'worker') {
+            if (ant.task === 'foraging') {
+                updateForagingWorker(ant, deltaTime);
+            } else {
+                updateNursingWorker(ant, deltaTime);
+            }
         }
 
-        // Периодическая смена задач
-        if (Math.random() < 0.0005 * deltaTime) {
-            ant.task = ['foraging', 'nursing', 'building', 'patrolling'][Math.floor(Math.random() * 4)];
+        // Случайное движение
+        ant.x += (Math.random() - 0.5) * deltaTime * 0.1;
+        ant.y += (Math.random() - 0.5) * deltaTime * 0.1;
+
+        // Границы поля
+        ant.x = Math.max(0, Math.min(800, ant.x));
+        ant.y = Math.max(0, Math.min(600, ant.y));
+
+        return true; // Муравей жив
+    }
+
+    function updateForagingWorker(worker, deltaTime) {
+        if (worker.carryingFood) {
+            // Возвращаемся в муравейник
+            const dx = 400 - worker.x;
+            const dy = 300 - worker.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 10) {
+                colony.value.foodStorage += 10;
+                worker.carryingFood = false;
+            } else {
+                worker.x += (dx / distance) * 0.2 * deltaTime;
+                worker.y += (dy / distance) * 0.2 * deltaTime;
+            }
+        } else {
+            // Ищем еду
+            let closestFood = null;
+            let minDistance = Infinity;
+
+            environment.value.foodSources.forEach(source => {
+                if (source.amount > 0) {
+                    const dx = source.x - worker.x;
+                    const dy = source.y - worker.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestFood = source;
+                    }
+                }
+            });
+
+            if (closestFood) {
+                if (minDistance < 10) {
+                    const collected = Math.min(20, closestFood.amount);
+                    closestFood.amount -= collected;
+                    worker.carryingFood = true;
+
+                    if (closestFood.amount <= 0) {
+                        environment.value.foodSources = environment.value.foodSources.filter(f => f.id !== closestFood.id);
+                    }
+                } else {
+                    const dx = closestFood.x - worker.x;
+                    const dy = closestFood.y - worker.y;
+                    worker.x += (dx / minDistance) * 0.2 * deltaTime;
+                    worker.y += (dy / minDistance) * 0.2 * deltaTime;
+                }
+            }
+        }
+    }
+
+    function updateNursingWorker(worker, deltaTime) {
+        if (Math.random() < 0.1) {
+            worker.x = 350 + Math.random() * 100;
+            worker.y = 250 + Math.random() * 100;
+
+            if (colony.value.foodStorage > 5 && colony.value.larvae.length > 0) {
+                const larva = colony.value.larvae[Math.floor(Math.random() * colony.value.larvae.length)];
+                const foodAmount = 2 + Math.random() * 8;
+
+                if (colony.value.foodStorage >= foodAmount) {
+                    larva.foodReceived += foodAmount;
+                    larva.health += foodAmount * (0.5 + Math.random());
+                    colony.value.foodStorage -= foodAmount;
+                }
+            }
         }
     }
 
     function updateLarvae(deltaTime) {
-        let availableFood = colony.value.food * 0.1 // 10% от общего запаса пищи доступно для личинок
-
         colony.value.larvae = colony.value.larvae.filter(larva => {
-            larva.age += deltaTime / 1000
+            larva.age += deltaTime / 1000;
+            larva.health -= 0.01 * deltaTime;
 
-            // Личинки получают пищу от рабочих
-            if (availableFood > 0 && Math.random() > 0.7) {
-                const foodAmount = Math.min(1, availableFood)
-                larva.foodReceived += foodAmount
-                availableFood -= foodAmount
-                colony.value.food -= foodAmount
-            }
+            if (larva.health <= 0) return false;
 
-            // Превращение во взрослого муравья
-            if (larva.age > 10 && larva.foodReceived > 50) {
-                const antType = larva.foodReceived > 80 ? 'soldier' : 'worker'
+            if (larva.age > 8) { // Быстрее растут
+                const antType = larva.health > 60 ? 'soldier' : 'worker';
                 const newAnt = {
                     id: `ant-${Date.now()}`,
                     type: antType,
                     age: 0,
                     energy: antType === 'soldier' ? 150 : 100,
-                    task: null,
+                    task: antType === 'soldier' ? 'patrolling' : (Math.random() > 0.5 ? 'foraging' : 'nursing'),
                     x: larva.x,
                     y: larva.y
-                }
+                };
 
                 if (antType === 'worker') {
-                    colony.value.workers.push(newAnt)
+                    colony.value.workers.push(newAnt);
                 } else {
-                    colony.value.soldiers.push(newAnt)
+                    colony.value.soldiers.push(newAnt);
                 }
-                return false // Удаляем личинку
+                return false;
             }
 
-            return true // Оставляем личинку
-        })
+            return true;
+        });
     }
 
-    function updateResources(deltaTime) {
-        // Потребление ресурсов
-        const consumptionRate = 0.1 * colony.value.workers.length + 0.2 * colony.value.soldiers.length
-        colony.value.food -= consumptionRate * deltaTime / 1000
-        colony.value.water -= consumptionRate * 0.5 * deltaTime / 1000
+    function layEggs(deltaTime) {
+        if (colony.value.queens.length === 0) return;
 
-        // Производство пищи тлями
-        colony.value.food += 0.2 * colony.value.aphidColonies * deltaTime / 1000
+        const queen = colony.value.queens[0];
+        queen.age += deltaTime / 1000;
 
-        // Производство пищи грибными фермами
-        colony.value.food += 0.5 * colony.value.fungusFarms * deltaTime / 1000
+        // Откладывает яйца каждые 5 секунд
+        if (queen.age % 5 < deltaTime / 1000 && colony.value.foodStorage > 20) {
+            const newLarvaeCount = Math.floor(Math.random() * 3) + 1; // 1-3 личинки
 
-        // Ограничение ресурсов
-        colony.value.food = Math.max(0, colony.value.food)
-        colony.value.water = Math.max(0, colony.value.water)
+            for (let i = 0; i < newLarvaeCount; i++) {
+                colony.value.larvae.push({
+                    id: `larva-${Date.now()}-${i}`,
+                    age: 0,
+                    foodReceived: 0,
+                    health: 50,
+                    x: 350 + Math.random() * 100,
+                    y: 250 + Math.random() * 100
+                });
+            }
+
+            colony.value.foodStorage -= 10 * newLarvaeCount;
+        }
     }
 
     return {

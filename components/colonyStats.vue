@@ -6,11 +6,10 @@ const store = useSimulationStore()
 
 const stats = computed(() => ({
     totalAnts: store.colony.queens.length + store.colony.workers.length + store.colony.soldiers.length,
-    food: Math.floor(store.colony.food),
-    water: Math.floor(store.colony.water),
+    foodStorage: Math.floor(store.colony.foodStorage),
     larvae: store.colony.larvae.length,
-    dayCycle: store.environment.dayCycle,
-    temperature: store.environment.temperature.toFixed(1)
+    foragers: store.colony.workers.filter(w => w.task === 'foraging').length,
+    nurses: store.colony.workers.filter(w => w.task === 'nursing').length
 }))
 </script>
 
@@ -21,10 +20,9 @@ const stats = computed(() => ({
         <div class="stat-item">Рабочие: {{ store.colony.workers.length }}</div>
         <div class="stat-item">Солдаты: {{ store.colony.soldiers.length }}</div>
         <div class="stat-item">Личинки: {{ stats.larvae }}</div>
-        <div class="stat-item">Пища: {{ stats.food }}</div>
-        <div class="stat-item">Вода: {{ stats.water }}</div>
-        <div class="stat-item">Цикл: {{ stats.dayCycle === 'day' ? 'День' : 'Ночь' }}</div>
-        <div class="stat-item">Температура: {{ stats.temperature }}°C</div>
+        <div class="stat-item">Добытчики: {{ stats.foragers }}</div>
+        <div class="stat-item">Няньки: {{ stats.nurses }}</div>
+        <div class="stat-item">Еда в хранилище: {{ stats.foodStorage }}</div>
     </div>
 </template>
 

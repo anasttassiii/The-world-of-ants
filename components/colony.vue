@@ -8,17 +8,18 @@ const store = useSimulationStore()
 
 <template>
     <div class="colony">
-        <!-- Царицы -->
-        <Ant v-for="queen in store.colony.queens" :key="queen.id" :ant="queen" type="queen" />
-
-        <!-- Рабочие -->
-        <Ant v-for="worker in store.colony.workers" :key="worker.id" :ant="worker" type="worker" />
-
-        <!-- Солдаты -->
-        <Ant v-for="soldier in store.colony.soldiers" :key="soldier.id" :ant="soldier" type="soldier" />
-
-        <!-- Личинки -->
-        <Larva v-for="larva in store.colony.larvae" :key="larva.id" :larva="larva" />
+        <!-- Отображаем только живых муравьев -->
+        <Ant v-for="queen in store.colony.queens.filter(q => q.energy > 0)" 
+             :key="queen.id" :ant="queen" type="queen" />
+             
+        <Ant v-for="worker in store.colony.workers.filter(w => w.energy > 0)" 
+             :key="worker.id" :ant="worker" type="worker" />
+             
+        <Ant v-for="soldier in store.colony.soldiers.filter(s => s.energy > 0)" 
+             :key="soldier.id" :ant="soldier" type="soldier" />
+             
+        <Larva v-for="larva in store.colony.larvae.filter(l => l.health > 0)" 
+               :key="larva.id" :larva="larva" />
     </div>
 </template>
 

@@ -13,3 +13,16 @@ const reset = () => emit('reset')
     <button @click="reset">Сброс</button>
   </div>
 </template>
+
+<style scoped>
+.controls {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+}
+
+.controls button {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+</style>

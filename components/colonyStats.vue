@@ -1,8 +1,11 @@
 <script setup>
 import { useSimulationStore } from '/stores/simulation'
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const store = useSimulationStore()
+
+const temperature = ref(20)
+const humidity = ref(75)
 
 const stats = computed(() => ({
     totalAnts: store.colony.queens.length + store.colony.workers.length + store.colony.soldiers.length,
@@ -11,18 +14,55 @@ const stats = computed(() => ({
     foragers: store.colony.workers.filter(w => w.task === 'foraging').length,
     nurses: store.colony.workers.filter(w => w.task === 'nursing').length
 }))
+
+const updateTemperature = (event) => {
+  temperature.value = event.target.value
+}
+
+const updateHumidity = (event) => {
+  humidity.value = event.target.value
+}
 </script>
 
 <template>
     <div class="stats">
         <h3>Статистика колонии</h3>
         <div class="stat-item">Всего муравьев: {{ stats.totalAnts }}</div>
+        <p></p>
         <div class="stat-item">Рабочие: {{ store.colony.workers.length }}</div>
         <div class="stat-item">Солдаты: {{ store.colony.soldiers.length }}</div>
         <div class="stat-item">Личинки: {{ stats.larvae }}</div>
         <div class="stat-item">Добытчики: {{ stats.foragers }}</div>
         <div class="stat-item">Няньки: {{ stats.nurses }}</div>
         <div class="stat-item">Еда в хранилище: {{ stats.foodStorage }}</div>
+        
+        <div class="stat-item slider-container">
+            Температура: {{ temperature }}°C
+            <div class="slider-wrapper">
+                <input 
+                    type="range" 
+                    min="0" 
+                    max="35" 
+                    v-model="temperature" 
+                    @input="updateTemperature"
+                    class="slider"
+                >
+            </div>
+        </div>
+
+        <div class="stat-item slider-container">
+            Влажность: {{ humidity }}%
+            <div class="slider-wrapper">
+                <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    v-model="humidity" 
+                    @input="updateHumidity"
+                    class="slider"
+                >
+            </div>
+        </div>
     </div>
 </template>
 
@@ -40,6 +80,36 @@ const stats = computed(() => ({
 .stat-item {
     padding: 5px;
     font-size: 14px;
+}
+
+.slider-container {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.slider-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: #ddd;
+    outline: none;
+
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #4CAF50;
+    cursor: pointer;
 }
 
 h3 {

@@ -17,7 +17,7 @@ const antStyle = computed(() => ({
     top: `${props.ant.y}px`,
     backgroundColor: props.type === 'queen' ? 'purple' :
         props.type === 'soldier' ? 'red' : 
-        props.ant.task === 'foraging' ? 'black' : 'green',
+        props.type === 'worker' && props.ant.task === 'foraging' ? 'black' : 'green',
     opacity: props.ant.energy > 10 ? 1 : props.ant.energy / 10
 }))
 

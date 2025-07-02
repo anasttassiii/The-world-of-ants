@@ -35,8 +35,8 @@ const foodStorageStyle = {
             <div class="food-storage" :style="foodStorageStyle"></div>
         </div>
         
-        <!-- Источники пищи -->
-        <div v-for="food in store.environment.foodSources" 
+         <!-- Источники пищи -->
+         <div v-for="food in store.environment.foodSources" 
              :key="food.id" 
              class="food-source" 
              :style="{

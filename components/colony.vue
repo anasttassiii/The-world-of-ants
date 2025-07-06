@@ -8,7 +8,6 @@ const store = useSimulationStore()
 
 <template>
     <div class="colony">
-        <!-- Отображаем только живых муравьев -->
         <Ant v-for="queen in store.colony.queens.filter(q => q.energy > 0)" 
              :key="queen.id" :ant="queen" type="queen" />
              

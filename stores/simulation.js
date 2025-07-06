@@ -13,6 +13,13 @@ export const useSimulationStore = defineStore('simulation', () => {
         nursery: []
     })
 
+
+    const ANTHILL_AREA = {
+        x: 400,       // Центр муравейника по X
+        y: 300,       // Центр муравейника по Y
+        radius: 100   // Радиус муравейника
+    };
+
     const environment = ref({
         plants: [],
         foodSources: [],
@@ -41,16 +48,45 @@ export const useSimulationStore = defineStore('simulation', () => {
     }
 
     function spawnNewFood() {
-        const newFoodCount = Math.floor(Math.random() * 8) + 5
+        const newFoodCount = Math.floor(Math.random() * 8) + 5;
+        const minDistanceFromAnthill = ANTHILL_AREA.radius + 50; // Минимальное расстояние от муравейника
 
         for (let i = 0; i < newFoodCount; i++) {
             if (environment.value.foodSources.length < params.value.maxFoodSources) {
-                environment.value.foodSources.push({
-                    id: `food-${Date.now()}-${i}`,
-                    x: Math.random() * 800,
-                    y: Math.random() * 600,
-                    amount: Math.random() * 300 + 200
-                })
+                let x, y;
+                let attempts = 0;
+                const maxAttempts = 100;
+
+                // Пытаемся найти позицию вне муравейника
+                do {
+                    x = Math.random() * 800;
+                    y = Math.random() * 600;
+                    attempts++;
+
+                    // Проверяем расстояние до центра муравейника
+                    const dx = x - ANTHILL_AREA.x;
+                    const dy = y - ANTHILL_AREA.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    // Если еда далеко от муравейника или слишком много попыток - выходим
+                    if (distance > minDistanceFromAnthill || attempts >= maxAttempts) {
+                        break;
+                    }
+                } while (true);
+
+                // Добавляем источник пищи только если он вне зоны муравейника
+                const dx = x - ANTHILL_AREA.x;
+                const dy = y - ANTHILL_AREA.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance > minDistanceFromAnthill) {
+                    environment.value.foodSources.push({
+                        id: `food-${Date.now()}-${i}`,
+                        x: x,
+                        y: y,
+                        amount: Math.random() * 300 + 200
+                    });
+                }
             }
         }
     }

@@ -47,7 +47,27 @@ export class QueenAnt extends AntBase {
         this.energy = 300;
         this.task = 'laying_eggs';
         this.lastFed = 0;
+        this.baseX = x;  // Запоминаем начальные координаты
+        this.baseY = y;
+        this.moveRadius = 10;  // Радиус, в пределах которого может двигаться королева
     }
+
+    move(deltaTime, environmentEffect) {
+        // Королева двигается очень мало - только в небольшом радиусе от начальной позиции
+        if (Math.random() < 0.01) {  // Только 1% шанс на движение
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * this.moveRadius;
+
+            this.x = this.baseX + Math.cos(angle) * distance;
+            this.y = this.baseY + Math.sin(angle) * distance;
+
+            // Гарантируем, что королева не уйдет далеко
+            this.x = Math.max(this.baseX - this.moveRadius, Math.min(this.baseX + this.moveRadius, this.x));
+            this.y = Math.max(this.baseY - this.moveRadius, Math.min(this.baseY + this.moveRadius, this.y));
+        }
+    }
+
+
 
     update(deltaTime, environmentEffect, colony, environment) {
         super.update(deltaTime, environmentEffect, colony, environment);

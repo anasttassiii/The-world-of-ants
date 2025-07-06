@@ -29,10 +29,7 @@ const foodStorageStyle = {
     <div class="environment day">
         <!-- Муравейник -->
         <div class="anthill" :style="anthillStyle">
-            <!-- Зона выращивания личинок -->
-            <div class="nursery-area" :style="nurseryStyle"></div>
-            <!-- Хранилище еды -->
-            <div class="food-storage" :style="foodStorageStyle"></div>
+            
         </div>
         
          <!-- Источники пищи -->
@@ -64,19 +61,6 @@ const foodStorageStyle = {
     opacity: 0.7;
 }
 
-.nursery-area {
-    position: absolute;
-    background-color: #FFD700;
-    border-radius: 50%;
-    opacity: 0.3;
-}
-
-.food-storage {
-    position: absolute;
-    background-color: #32CD32;
-    border-radius: 50%;
-    opacity: 0.3;
-}
 
 .food-source {
     position: absolute;

@@ -92,10 +92,10 @@ export class QueenAnt extends AntBase {
     layEggs(deltaTime, colony, environment) {
         if (environment.temperature <= 7 || environment.temperature >= 33) return;
 
-        this.age += deltaTime / 1000;
+        this.age += 0.05;
 
-        if (this.age % 3 < deltaTime / 1000 && colony.foodStorage > 30) {
-            const newLarvaeCount = Math.floor(Math.random() * 4) + 2;
+        if (this.age % 3 < 0.05 && colony.foodStorage > 15) {
+            const newLarvaeCount = Math.floor(Math.random() * 4) + 5;
 
             for (let i = 0; i < newLarvaeCount; i++) {
                 colony.larvae.push({
@@ -116,7 +116,7 @@ export class QueenAnt extends AntBase {
 export class WorkerAnt extends AntBase {
     constructor(x, y, task) {
         super('worker', x, y);
-        this.energy = 120;
+        this.energy = 180;
         this.task = task || (Math.random() > 0.5 ? 'foraging' : 'nursing');
         this.carryingFood = false;
     }

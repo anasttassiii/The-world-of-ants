@@ -34,6 +34,7 @@ const antClass = computed(() => ({
         'ant-soldier': type === 'soldier'
     }, antClass]">
         <span v-if="ant.energy <= 10" class="death-icon">💀</span>
+        <span v-if="type === 'queen'" class="crown-icon">👑</span>
     </div>
 </template>
 
@@ -80,5 +81,15 @@ const antClass = computed(() => ({
     font-size: 8px;
     position: absolute;
     top: -8px;
+}
+
+.crown-icon {
+    font-size: 10px;
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 11;
+    filter: drop-shadow(0 0 2px gold);
 }
 </style>

@@ -175,7 +175,7 @@ export const useSimulationStore = defineStore('simulation', () => {
                 const randomValue = Math.random() * 100;
                 let ant;
 
-                if (randomValue < 30 + larva.health / 2) {
+                if (randomValue < larva.health / 2) {
                     ant = new SoldierAnt(larva.x, larva.y);
                     colony.value.soldiers.push(ant);
                 } else {

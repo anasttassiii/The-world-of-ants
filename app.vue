@@ -4,6 +4,7 @@
     <div class="simulation-container">
       <Environment />
       <Colony />
+      <DestructionMessage />
     </div>
     <Controls @start="start" @stop="stop" @reset="reset" />
     <ColonyStats />
@@ -17,6 +18,7 @@ import Environment from '/components/environment.vue'
 import Colony from '/components/colony.vue'
 import Controls from '/components/controls.vue'
 import ColonyStats from '/components/colonyStats.vue'
+import DestructionMessage from '/components/destructionMessage.vue'
 
 const { start, stop, reset } = useSimulation()
 

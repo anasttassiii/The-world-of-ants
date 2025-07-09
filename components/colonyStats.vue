@@ -34,6 +34,7 @@ const updateHumidity = (event) => {
         <div class="stat-item">Личинки: {{ stats.larvae }}</div>
         <div class="stat-item">Добытчики: {{ stats.foragers }}</div>
         <div class="stat-item">Няньки: {{ stats.nurses }}</div>
+        <p></p>
 
         
         <div class="stat-item slider-container">

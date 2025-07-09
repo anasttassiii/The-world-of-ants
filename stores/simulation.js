@@ -12,7 +12,8 @@ export const useSimulationStore = defineStore('simulation', () => {
         food: 3000,
         foodStorage: 150,
         nursery: [],
-        isDestroyed: false
+        isDestroyed: false,
+        destructionMessage: '' // Добавляем поле для сообщения
     })
 
     const ANTHILL_AREA = {
@@ -233,7 +234,7 @@ export const useSimulationStore = defineStore('simulation', () => {
                 // Если нет солдат - разрушить муравейник
                 if (colony.value.soldiers.length === 0) {
                     colony.value.isDestroyed = true;
-                    console.log("Муравейник разрушен!");
+                    colony.value.destructionMessage = 'МУРАВЕЙНИК РАЗРУШЕН!';
                     params.value.isRunning = false;
                 }
                 return false;

@@ -1,23 +1,24 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { QueenAnt, WorkerAnt, SoldierAnt } from '/antClasses.js'
+import { QueenAnt, WorkerAnt, SoldierAnt, Destroyer } from '/antClasses.js'
 
 export const useSimulationStore = defineStore('simulation', () => {
     const colony = ref({
         queens: [],
         workers: [],
         soldiers: [],
+        destroyers: [],
         larvae: [],
         food: 3000,
         foodStorage: 150,
-        nursery: []
+        nursery: [],
+        isDestroyed: false
     })
 
-
     const ANTHILL_AREA = {
-        x: 400,       // Центр муравейника по X
-        y: 300,       // Центр муравейника по Y
-        radius: 100   // Радиус муравейника
+        x: 400,
+        y: 300,
+        radius: 100
     };
 
     const environment = ref({
@@ -32,7 +33,10 @@ export const useSimulationStore = defineStore('simulation', () => {
         isRunning: false,
         foodSpawnInterval: 5,
         lastFoodSpawnTime: 0,
-        maxFoodSources: 50
+        maxFoodSources: 50,
+        lastDestroyerSpawnTime: 0,
+        destroyerSpawnInterval: 30,
+        isColonyDestroyed: false
     })
 
     const getTemperatureEffect = (temp) => {
@@ -49,7 +53,7 @@ export const useSimulationStore = defineStore('simulation', () => {
 
     function spawnNewFood() {
         const newFoodCount = Math.floor(Math.random() * 8) + 5;
-        const minDistanceFromAnthill = ANTHILL_AREA.radius + 50; // Минимальное расстояние от муравейника
+        const minDistanceFromAnthill = ANTHILL_AREA.radius + 50;
 
         for (let i = 0; i < newFoodCount; i++) {
             if (environment.value.foodSources.length < params.value.maxFoodSources) {
@@ -57,24 +61,20 @@ export const useSimulationStore = defineStore('simulation', () => {
                 let attempts = 0;
                 const maxAttempts = 100;
 
-                // Пытаемся найти позицию вне муравейника
                 do {
                     x = Math.random() * 800;
                     y = Math.random() * 600;
                     attempts++;
 
-                    // Проверяем расстояние до центра муравейника
                     const dx = x - ANTHILL_AREA.x;
                     const dy = y - ANTHILL_AREA.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
 
-                    // Если еда далеко от муравейника или слишком много попыток - выходим
                     if (distance > minDistanceFromAnthill || attempts >= maxAttempts) {
                         break;
                     }
                 } while (true);
 
-                // Добавляем источник пищи только если он вне зоны муравейника
                 const dx = x - ANTHILL_AREA.x;
                 const dy = y - ANTHILL_AREA.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
@@ -89,6 +89,26 @@ export const useSimulationStore = defineStore('simulation', () => {
                 }
             }
         }
+    }
+
+
+    function spawnDestroyer() {
+        // Спавн только с 20% вероятностью
+        if (Math.random() > 0.2) return;
+
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+
+        switch (side) {
+            case 0: x = Math.random() * 800; y = 0; break;
+            case 1: x = 800; y = Math.random() * 600; break;
+            case 2: x = Math.random() * 800; y = 600; break;
+            case 3: x = 0; y = Math.random() * 600; break;
+        }
+
+        const destroyer = new Destroyer(x, y);
+        destroyer.speed = 0.08; // Еще более медленные
+        colony.value.destroyers.push(destroyer);
     }
 
     function setTemperature(value) {
@@ -120,6 +140,7 @@ export const useSimulationStore = defineStore('simulation', () => {
                     300 + (Math.random() * 100 - 50)
                 )
             ),
+            destroyers: [],
             larvae: Array.from({ length: 15 }, (_, i) => ({
                 id: `larva-${i}`,
                 age: Math.random() * 5,
@@ -130,12 +151,13 @@ export const useSimulationStore = defineStore('simulation', () => {
             })),
             food: 3000,
             foodStorage: 150,
-            nursery: []
+            nursery: [],
+            isDestroyed: false
         }
     }
 
     function updateSimulation(deltaTime) {
-        if (!params.value.isRunning) return
+        if (!params.value.isRunning || colony.value.isDestroyed) return
 
         params.value.lastFoodSpawnTime += deltaTime
         if (params.value.lastFoodSpawnTime >= params.value.foodSpawnInterval) {
@@ -143,9 +165,23 @@ export const useSimulationStore = defineStore('simulation', () => {
             params.value.lastFoodSpawnTime = 0
         }
 
+        // Спавн разрушителей
+        params.value.lastDestroyerSpawnTime += deltaTime
+        if (params.value.lastDestroyerSpawnTime >= params.value.destroyerSpawnInterval * 3) { // Интервал x3
+            spawnDestroyer();
+            params.value.lastDestroyerSpawnTime = 0;
+        }
+
         const tempEffect = getTemperatureEffect(environment.value.temperature)
         const humidityEffect = getHumidityEffect(environment.value.humidity)
         const environmentEffect = tempEffect * humidityEffect
+
+        // Проверка условий для откладывания личинок
+        if ((environment.value.temperature >= 0 && environment.value.temperature <= 7) ||
+            environment.value.temperature >= 33 ||
+            (environment.value.humidity >= 60 && environment.value.humidity <= 80)) {
+            console.log("Неблагоприятные условия для откладывания личинок")
+        }
 
         colony.value.queens.forEach(queen => {
             if (queen.update(deltaTime, environmentEffect, colony.value, environment.value)) {
@@ -157,9 +193,69 @@ export const useSimulationStore = defineStore('simulation', () => {
             worker.update(deltaTime, environmentEffect, colony.value, environment.value)
         )
 
-        colony.value.soldiers = colony.value.soldiers.filter(soldier =>
-            soldier.update(deltaTime, environmentEffect, colony.value, environment.value)
-        )
+        // Обновление солдат и проверка боя с разрушителями
+        colony.value.soldiers = colony.value.soldiers.filter(soldier => {
+            if (!soldier.update(deltaTime, environmentEffect, colony.value, environment.value)) {
+                return false
+            }
+
+            // Поиск ближайшего разрушителя для атаки
+            let closestDestroyer = null
+            let minDistance = Infinity
+
+            colony.value.destroyers.forEach(destroyer => {
+                const dx = destroyer.x - soldier.x
+                const dy = destroyer.y - soldier.y
+                const distance = Math.sqrt(dx * dx + dy * dy)
+
+                if (distance < minDistance) {
+                    minDistance = distance
+                    closestDestroyer = destroyer
+                }
+            })
+
+            // Если разрушитель близко - атаковать
+            if (closestDestroyer && minDistance < 10) {
+                soldier.energy -= 5 // Трата энергии на атаку
+                closestDestroyer.energy -= 15 // Урон разрушителю
+
+                // Если солдат слаб - погибает
+                if (soldier.energy <= 0) {
+                    return false
+                }
+
+                // Если разрушитель побежден
+                if (closestDestroyer.energy <= 0) {
+                    colony.value.destroyers = colony.value.destroyers.filter(d => d.id !== closestDestroyer.id)
+                }
+            }
+
+            return true
+        })
+
+        // Обновление разрушителей
+        colony.value.destroyers = colony.value.destroyers.filter(destroyer => {
+            if (!destroyer.update(deltaTime, colony.value)) {
+                return false
+            }
+
+            // Проверка на достижение муравейника
+            const dx = ANTHILL_AREA.x - destroyer.x
+            const dy = ANTHILL_AREA.y - destroyer.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
+
+            if (distance < ANTHILL_AREA.radius) {
+                // Если нет солдат - разрушить муравейник
+                if (colony.value.soldiers.length === 0) {
+                    colony.value.isDestroyed = true
+                    console.log("Муравейник разрушен!")
+                    params.value.isRunning = false
+                }
+                return false
+            }
+
+            return true
+        })
 
         updateLarvae(deltaTime, environmentEffect)
     }

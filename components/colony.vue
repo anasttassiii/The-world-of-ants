@@ -17,6 +17,9 @@ const store = useSimulationStore()
         <Ant v-for="soldier in store.colony.soldiers.filter(s => s.energy > 0)" 
              :key="soldier.id" :ant="soldier" type="soldier" />
              
+        <Ant v-for="destroyer in store.colony.destroyers.filter(d => d.energy > 0)"
+             :key="destroyer.id" :ant="destroyer" type="destroyer" />
+             
         <Larva v-for="larva in store.colony.larvae.filter(l => l.health > 0)" 
                :key="larva.id" :larva="larva" />
     </div>

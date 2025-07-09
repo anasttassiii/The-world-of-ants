@@ -15,7 +15,7 @@ export class AntBase {
 
         if (this.energy <= 0) return false;
 
-        if (colony.foodStorage > 20) {
+        if (colony.foodStorage > 20 && this.type !== 'destroyer') {
             this.energy = Math.min(
                 this.getMaxEnergy(),
                 this.energy + 0.003 * deltaTime * Math.max(0, environmentEffect)
@@ -211,9 +211,90 @@ export class SoldierAnt extends AntBase {
         super('soldier', x, y);
         this.energy = 180;
         this.task = 'patrolling';
+        this.attackCooldown = 0;
+        this.attackRange = 0; // Дистанция атаки (очень близко)
+    }
+
+    update(deltaTime, environmentEffect, colony, environment) {
+        const isAlive = super.update(deltaTime, environmentEffect, colony, environment);
+        if (!isAlive) return false;
+
+        // Поиск ближайшего разрушителя
+        let closestDestroyer = null;
+        let minDistance = Infinity;
+
+        colony.destroyers.forEach(destroyer => {
+            const dx = destroyer.x - this.x;
+            const dy = destroyer.y - this.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestDestroyer = destroyer;
+            }
+        });
+
+        // Если разрушитель обнаружен
+        if (closestDestroyer) {
+            const dx = closestDestroyer.x - this.x;
+            const dy = closestDestroyer.y - this.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Движение к разрушителю
+            if (distance > this.attackRange) {
+                const speed = 0.1;
+                this.x += (dx / distance);
+                this.y += (dy / distance);
+            }
+            // Атака если вплотную
+            else if (this.attackCooldown <= 0) {
+                closestDestroyer.energy -= 30; // Увеличен урон
+                this.energy -= 8; // Увеличены энергозатраты
+                this.attackCooldown = 1500; // Увеличен кулдаун (1.5 сек)
+            }
+
+            if (this.attackCooldown > 0) {
+                this.attackCooldown -= deltaTime;
+            }
+        }
+
+        return true;
     }
 
     getMaxEnergy() {
         return 180;
+    }
+}
+
+export class Destroyer {
+    constructor(x, y) {
+        this.id = `destroyer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        this.type = 'destroyer';
+        this.energy = 150; // Уменьшено здоровье
+        this.x = x;
+        this.y = y;
+        this.attackPower = 10;
+        this.speed = 0.1; // Медленная скорость
+    }
+
+    update(deltaTime, colony) {
+        this.energy -= 0.0005 * deltaTime; // Медленнее теряют энергию
+        if (this.energy <= 0) return false;
+
+        // Движение к муравейнику
+        const dx = 400 - this.x;
+        const dy = 300 - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 10) {
+            this.x += (dx / distance) * this.speed * deltaTime;
+            this.y += (dy / distance) * this.speed * deltaTime;
+        }
+
+        return true;
+    }
+
+    getMaxEnergy() {
+        return 150;
     }
 }

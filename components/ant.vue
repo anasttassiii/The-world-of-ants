@@ -17,7 +17,8 @@ const antStyle = computed(() => ({
     top: `${props.ant.y}px`,
     backgroundColor: props.type === 'queen' ? 'purple' :
         props.type === 'soldier' ? 'red' : 
-        props.type === 'worker' && props.ant.task === 'foraging' ? 'black' : 'green',
+        props.type === 'worker' && props.ant.task === 'foraging' ? 'black' : 
+        props.type === 'destroyer' ? 'darkred' : 'green',
     opacity: props.ant.energy > 10 ? 1 : props.ant.energy / 10
 }))
 
@@ -31,10 +32,12 @@ const antClass = computed(() => ({
     <div class="ant" :style="antStyle" :class="[{
         'ant-queen': type === 'queen',
         'ant-worker': type === 'worker',
-        'ant-soldier': type === 'soldier'
+        'ant-soldier': type === 'soldier',
+        'ant-destroyer': type === 'destroyer'
     }, antClass]">
         <span v-if="ant.energy <= 10" class="death-icon">💀</span>
         <span v-if="type === 'queen'" class="crown-icon">👑</span>
+        <span v-if="type === 'destroyer'" class="skull-icon">☠️</span>
     </div>
 </template>
 
@@ -60,6 +63,12 @@ const antClass = computed(() => ({
 .ant-soldier {
     width: 10px;
     height: 10px;
+}
+
+.ant-destroyer {
+    width: 12px;
+    height: 12px;
+    z-index: 10;
 }
 
 .ant-carrying::after {
@@ -91,5 +100,14 @@ const antClass = computed(() => ({
     transform: translateX(-50%);
     z-index: 11;
     filter: drop-shadow(0 0 2px gold);
+}
+
+.skull-icon {
+    font-size: 10px;
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 11;
 }
 </style>

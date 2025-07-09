@@ -96,18 +96,12 @@ export const useSimulationStore = defineStore('simulation', () => {
         // Спавн только с 20% вероятностью
         if (Math.random() > 0.2) return;
 
-        const side = Math.floor(Math.random() * 4);
-        let x, y;
-
-        switch (side) {
-            case 0: x = Math.random() * 800; y = 0; break;
-            case 1: x = 800; y = Math.random() * 600; break;
-            case 2: x = Math.random() * 800; y = 600; break;
-            case 3: x = 0; y = Math.random() * 600; break;
-        }
+        // Спавн только в нижней части экрана (y = 600 - это низ)
+        const x = Math.random() * 800;  // Случайная позиция по ширине
+        const y = 600;                  // Фиксированно внизу экрана
 
         const destroyer = new Destroyer(x, y);
-        destroyer.speed = 0.08; // Еще более медленные
+        destroyer.speed = 0.08;
         colony.value.destroyers.push(destroyer);
     }
 
@@ -157,108 +151,103 @@ export const useSimulationStore = defineStore('simulation', () => {
     }
 
     function updateSimulation(deltaTime) {
-        if (!params.value.isRunning || colony.value.isDestroyed) return
+        if (!params.value.isRunning || colony.value.isDestroyed) return;
 
-        params.value.lastFoodSpawnTime += deltaTime
+        params.value.lastFoodSpawnTime += deltaTime;
         if (params.value.lastFoodSpawnTime >= params.value.foodSpawnInterval) {
-            spawnNewFood()
-            params.value.lastFoodSpawnTime = 0
+            spawnNewFood();
+            params.value.lastFoodSpawnTime = 0;
         }
 
         // Спавн разрушителей
-        params.value.lastDestroyerSpawnTime += deltaTime
-        if (params.value.lastDestroyerSpawnTime >= params.value.destroyerSpawnInterval * 3) { // Интервал x3
-            spawnDestroyer();
+        params.value.lastDestroyerSpawnTime += deltaTime;
+        if (params.value.lastDestroyerSpawnTime >= params.value.destroyerSpawnInterval * 3) {
+            if (Math.random() < 0.2) {
+                spawnDestroyer();
+            }
             params.value.lastDestroyerSpawnTime = 0;
         }
 
-        const tempEffect = getTemperatureEffect(environment.value.temperature)
-        const humidityEffect = getHumidityEffect(environment.value.humidity)
-        const environmentEffect = tempEffect * humidityEffect
+        const tempEffect = getTemperatureEffect(environment.value.temperature);
+        const humidityEffect = getHumidityEffect(environment.value.humidity);
+        const environmentEffect = tempEffect * humidityEffect;
 
         // Проверка условий для откладывания личинок
         if ((environment.value.temperature >= 0 && environment.value.temperature <= 7) ||
             environment.value.temperature >= 33 ||
-            (environment.value.humidity >= 60 && environment.value.humidity <= 80)) {
-            console.log("Неблагоприятные условия для откладывания личинок")
+            (environment.value.humidity < 60 || environment.value.humidity > 80)) {
+            console.log("Неблагоприятные условия для откладывания личинок");
         }
 
         colony.value.queens.forEach(queen => {
             if (queen.update(deltaTime, environmentEffect, colony.value, environment.value)) {
-                queen.layEggs(deltaTime, colony.value, environment.value)
+                queen.layEggs(deltaTime, colony.value, environment.value);
             }
-        })
+        });
 
         colony.value.workers = colony.value.workers.filter(worker =>
             worker.update(deltaTime, environmentEffect, colony.value, environment.value)
-        )
+        );
 
         // Обновление солдат и проверка боя с разрушителями
         colony.value.soldiers = colony.value.soldiers.filter(soldier => {
             if (!soldier.update(deltaTime, environmentEffect, colony.value, environment.value)) {
-                return false
+                return false;
             }
 
-            // Поиск ближайшего разрушителя для атаки
-            let closestDestroyer = null
-            let minDistance = Infinity
-
+            // Проверка ближнего боя с разрушителями
             colony.value.destroyers.forEach(destroyer => {
-                const dx = destroyer.x - soldier.x
-                const dy = destroyer.y - soldier.y
-                const distance = Math.sqrt(dx * dx + dy * dy)
+                const dx = destroyer.x - soldier.x;
+                const dy = destroyer.y - soldier.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance < minDistance) {
-                    minDistance = distance
-                    closestDestroyer = destroyer
+                // Бой происходит только при непосредственном контакте (расстояние <= 1)
+                if (distance <= 1) {
+                    // Солдат атакует
+                    if (soldier.attackCooldown <= 0) {
+                        destroyer.energy -= 25; // Урон по разрушителю
+                        soldier.energy -= 5;   // Затраты энергии на атаку
+                        soldier.attackCooldown = 1000; // Кулдаун 1 секунда
+                    }
+
+                    // Разрушитель контратакует
+                    soldier.energy -= 3 * deltaTime / 1000; // Непрерывный урон при контакте
                 }
-            })
+            });
 
-            // Если разрушитель близко - атаковать
-            if (closestDestroyer && minDistance < 10) {
-                soldier.energy -= 5 // Трата энергии на атаку
-                closestDestroyer.energy -= 15 // Урон разрушителю
-
-                // Если солдат слаб - погибает
-                if (soldier.energy <= 0) {
-                    return false
-                }
-
-                // Если разрушитель побежден
-                if (closestDestroyer.energy <= 0) {
-                    colony.value.destroyers = colony.value.destroyers.filter(d => d.id !== closestDestroyer.id)
-                }
-            }
-
-            return true
-        })
+            return soldier.energy > 0;
+        });
 
         // Обновление разрушителей
         colony.value.destroyers = colony.value.destroyers.filter(destroyer => {
             if (!destroyer.update(deltaTime, colony.value)) {
-                return false
+                return false;
             }
 
             // Проверка на достижение муравейника
-            const dx = ANTHILL_AREA.x - destroyer.x
-            const dy = ANTHILL_AREA.y - destroyer.y
-            const distance = Math.sqrt(dx * dx + dy * dy)
+            const dx = ANTHILL_AREA.x - destroyer.x;
+            const dy = ANTHILL_AREA.y - destroyer.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < ANTHILL_AREA.radius) {
                 // Если нет солдат - разрушить муравейник
                 if (colony.value.soldiers.length === 0) {
-                    colony.value.isDestroyed = true
-                    console.log("Муравейник разрушен!")
-                    params.value.isRunning = false
+                    colony.value.isDestroyed = true;
+                    console.log("Муравейник разрушен!");
+                    params.value.isRunning = false;
                 }
-                return false
+                return false;
             }
 
-            return true
-        })
+            return true;
+        });
 
-        updateLarvae(deltaTime, environmentEffect)
+        // Удаление побежденных разрушителей
+        colony.value.destroyers = colony.value.destroyers.filter(d => d.energy > 0);
+
+        updateLarvae(deltaTime, environmentEffect);
     }
+
 
     function updateLarvae(deltaTime, environmentEffect) {
         colony.value.larvae = colony.value.larvae.filter(larva => {

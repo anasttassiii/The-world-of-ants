@@ -212,7 +212,7 @@ export class SoldierAnt extends AntBase {
         this.energy = 180;
         this.task = 'patrolling';
         this.attackCooldown = 0;
-        this.attackRange = 0; // Дистанция атаки (очень близко)
+        this.attackRange = 1; // Дистанция атаки (очень близко, почти вплотную)
     }
 
     update(deltaTime, environmentEffect, colony, environment) {
@@ -242,15 +242,15 @@ export class SoldierAnt extends AntBase {
 
             // Движение к разрушителю
             if (distance > this.attackRange) {
-                const speed = 0.1;
-                this.x += (dx / distance);
-                this.y += (dy / distance);
+                const speed = 0.2;
+                this.x += (dx / distance) * speed * deltaTime;
+                this.y += (dy / distance) * speed * deltaTime;
             }
             // Атака если вплотную
             else if (this.attackCooldown <= 0) {
-                closestDestroyer.energy -= 30; // Увеличен урон
-                this.energy -= 8; // Увеличены энергозатраты
-                this.attackCooldown = 1500; // Увеличен кулдаун (1.5 сек)
+                closestDestroyer.energy -= 25; // Урон разрушителю
+                this.energy -= 5; // Трата энергии на атаку
+                this.attackCooldown = 1000; // 1 секунда кулдауна
             }
 
             if (this.attackCooldown > 0) {
@@ -270,15 +270,15 @@ export class Destroyer {
     constructor(x, y) {
         this.id = `destroyer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         this.type = 'destroyer';
-        this.energy = 150; // Уменьшено здоровье
+        this.energy = 350;
         this.x = x;
         this.y = y;
         this.attackPower = 10;
-        this.speed = 0.1; // Медленная скорость
+        this.speed = 0.1;
     }
 
     update(deltaTime, colony) {
-        this.energy -= 0.0005 * deltaTime; // Медленнее теряют энергию
+        this.energy -= 0.0005 * deltaTime;
         if (this.energy <= 0) return false;
 
         // Движение к муравейнику
@@ -286,7 +286,7 @@ export class Destroyer {
         const dy = 300 - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance > 10) {
+        if (distance > 0) {
             this.x += (dx / distance) * this.speed * deltaTime;
             this.y += (dy / distance) * this.speed * deltaTime;
         }
